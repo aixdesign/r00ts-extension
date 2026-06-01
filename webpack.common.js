@@ -16,21 +16,25 @@ module.exports = {
         clean: true
     },
     module: {
-        rules: [{
-            test: /\.(ts|tsx)$/,
-            use: { loader: 'ts-loader', options: { transpileOnly: true } },
-
-            exclude: /node_modules/,
-        },
-        { test: /\.css?$/, use: ["style-loader", "css-loader"] },
+        rules: [
+            {
+                test: /\.(ts|tsx)$/,
+                use: { loader: 'ts-loader', options: { transpileOnly: true } },
+                exclude: /node_modules/,
+            },
         ]
     },
     plugins: [
         new CopyWebpackPlugin({
             patterns: [
-                { from: "src", to: ".", globOptions: { ignore: ["**/*.js", "**/*.ts"] } }
+                { from: "src", to: ".", globOptions: { ignore: ["**/*.js", "**/*.ts"] } },
+                { from: 'node_modules/maplibre-gl/dist/maplibre-gl-csp-worker.js', to: '.' },
+                {
+                    from: 'node_modules/maplibre-gl/dist/maplibre-gl.css',
+                    to: 'popup/maplibre.css'
+                }
             ]
         }),
-        new Dotenv()
+        new Dotenv(),
     ]
 };

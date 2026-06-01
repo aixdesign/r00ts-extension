@@ -1,8 +1,14 @@
 import * as browser from "webextension-polyfill";
 import { Datacenter, Entry, MessageTypes, PageData } from "../types";
 
+import { LngLatBounds, Map, Marker, setWorkerUrl } from 'maplibre-gl';
+
 let currentTabId: number;
 let currentEntries: { [key: string]: Entry } = {};
+
+let map: maplibregl.Map;
+
+let markers: { [key: number]: Marker } = {};
 
 browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runtime.MessageSender) => {
     if (message.tabId != currentTabId)
@@ -16,7 +22,8 @@ browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runt
         const entry: Entry = message.data;
         currentEntries[entry.ip] = entry;
         updateEntry(entry);
-    } else if (message.type == MessageTypes.COUNTS) {
+    }
+    else if (message.type == MessageTypes.COUNTS) {
         const { cachedCount, requestsCount } = message.data;
         updateCounts(cachedCount, requestsCount);
     } else if (message.type == MessageTypes.UPDATE_FACILITIES) {
@@ -35,7 +42,6 @@ async function load() {
             return;
 
         const pageData: PageData = response;
-
         const { cachedCount, requestsCount } = pageData;
         currentEntries = pageData.entries;
 
@@ -45,6 +51,13 @@ async function load() {
         updateCounts(cachedCount, requestsCount);
         updateUrl(pageData.pageUrl);
         updateFacilities(pageData.facilities);
+    });
+
+    setWorkerUrl(browser.runtime.getURL('maplibre-gl-csp-worker.js'));
+    map = new Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        interactive: false
     });
 }
 
@@ -148,6 +161,26 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
     const facilityCounter = document.getElementById("facility-count");
     if (facilityCounter)
         facilityCounter.innerHTML = Array.from(Object.keys(datacenters)).length.toString();
+
+    if (!map)
+        return;
+
+    for (const fac_id of Object.keys(datacenters)) {
+        const id = parseInt(fac_id);
+        if (!markers[id]) {
+            const facility = datacenters[id];
+            const marker = new Marker()
+                .setLngLat([facility.lon, facility.lat])
+                .addTo(map);
+            markers[id] = marker;
+        }
+    }
+
+    const bounds = Object.values(markers).reduce((bounds, marker) => {
+        return bounds.extend(marker.getLngLat());
+    }, new LngLatBounds());
+
+    map.fitBounds(bounds, { padding: 20 });
 }
 
 load();

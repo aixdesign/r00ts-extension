@@ -1,34 +1,41 @@
 export type Datacenter = {
-  id: number,
-  name: string,
-  lat: number,
-  lon: number
+    id: number,
+    name: string,
+    lat: number,
+    lon: number
 };
 
+export type Network = {
+    id: number,
+    net_id: number,
+    network_name: string,
+    organisation_name: string,
+    description: string,
+    asn: number,
+}
+
 export type Entry = {
-  ip: string,
-  url: string,
-  count: number,
-  type: string,
-  statusCode: number,
-  timestamp: string,
-  hostname: string,
-  durationMs: number | null,
-  network: string | null,
+    ip: string,
+    hostname: string,
+    count: number,
+    durationMs?: number,
+    network_id?: number,
 };
 
 export type PageData = {
-  pageUrl: string,
-  cachedCount: number,
-  requestsCount: number,
-  facilities: { [key: number]: Datacenter },
-  entries: { [key: string]: Entry }
+    pageUrl: string,
+    cachedCount: number,
+    requestsCount: number,
+    facilities: { [key: number]: Datacenter },
+    networks: { [key: number]: Network },
+    networksDatacenters: { [key: number]: Set<number> },
+    entries: { [key: string]: Entry }
 };
 
 export enum MessageTypes {
-  GET_TAB_DATA,
-  NEW_ENTRY,
-  UPDATE_ENTRY,
-  COUNTS,
-  UPDATE_FACILITIES
+    GET_TAB_DATA,
+    NEW_ENTRY,
+    UPDATE_ENTRY,
+    COUNTS,
+    UPDATE_FACILITIES
 };

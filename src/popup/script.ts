@@ -10,6 +10,10 @@ let map: maplibregl.Map;
 
 let markers: { [key: number]: Marker } = {};
 let facility_ids: number[] = [];
+let network_ids: number[] = [];
+let network_datacenters: { [key: number]: number[] };
+
+let pageUrl: string;
 
 let bounds: LngLatBounds;
 
@@ -21,7 +25,8 @@ browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runt
         const entry: Entry = message.data;
         currentEntries[entry.ip] = entry;
         addEntry(entry);
-    } else if (message.type == MessageTypes.UPDATE_ENTRY) {
+    }
+    else if (message.type == MessageTypes.UPDATE_ENTRY) {
         const entry: Entry = message.data;
         currentEntries[entry.ip] = entry;
         updateEntry(entry);
@@ -29,8 +34,14 @@ browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runt
     else if (message.type == MessageTypes.COUNTS) {
         const { cachedCount, requestsCount } = message.data;
         updateCounts(cachedCount, requestsCount);
-    } else if (message.type == MessageTypes.UPDATE_FACILITIES) {
-        updateFacilities(message.data);
+    }
+    else if (message.type == MessageTypes.UPDATE_FACILITIES) {
+        network_ids = Object.keys(message.data.networks).map(k => parseInt(k));
+        updateFacilities(message.data.facilities);
+        network_datacenters = {};
+        for (const net_id of Object.keys(message.data.networkDatacenters)) {
+            network_datacenters[parseInt(net_id)] = Array.from(message.data.networkDatacenters[parseInt(net_id)]);
+        }
     }
 });
 
@@ -58,8 +69,9 @@ async function load() {
             return;
 
         const pageData: PageData = response;
-        const { cachedCount, requestsCount } = pageData;
+        const { cachedCount, requestsCount, networks, networksDatacenters } = pageData;
         currentEntries = pageData.entries;
+        pageUrl = pageData.pageUrl;
 
         for (const ip of Object.keys(currentEntries))
             addEntry(currentEntries[ip]);
@@ -67,13 +79,25 @@ async function load() {
         updateCounts(cachedCount, requestsCount);
         updateUrl(pageData.pageUrl);
         updateFacilities(pageData.facilities);
+
+        network_ids = Object.keys(networks).map(k => parseInt(k));
+        network_datacenters = {};
+        for (const net_id of Object.keys(networksDatacenters)) {
+            network_datacenters[parseInt(net_id)] = Array.from(networksDatacenters[parseInt(net_id)]);
+        }
     });
 
     document.getElementById('details-btn')?.addEventListener('click', () => {
-        console.log('clicked for details');
-        //console.log(facility_ids);
-        //console.log(JSON.stringify(currentEntries, null, 2));
-        browser.tabs.create({ url: `http://localhost:5173/?ids=${JSON.stringify(facility_ids)}` });
+        const data = {
+            facility_ids,
+            network_ids,
+            network_datacenters,
+            entries: currentEntries,
+            pageUrl,
+        };
+        console.log(JSON.stringify(data, null, 2));
+        const data64 = btoa(JSON.stringify(data));
+        browser.tabs.create({ url: `http://localhost:5173/?data=${data64}` });
     });
 
 }
@@ -103,7 +127,6 @@ function addEntry(entry: Entry) {
 
     const row = document.createElement('div');
     row.className = 'entry';
-    row.title = entry.url;
 
     const ipv6 = isIPv6(entry.ip);
     const ip_el = document.createElement('span');
@@ -116,8 +139,7 @@ function addEntry(entry: Entry) {
     host_el.classList.add('entry-host');
     host_el.innerText = entry.hostname;
 
-    const network = entry.network;
-    const network_name = network ? network : '??';
+    const network_name = '??';
 
     const network_btn = document.createElement('button');
     network_btn.classList.add("entry-type");

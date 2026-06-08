@@ -24,13 +24,13 @@ npm install
 Create a `.env` file with the following keys:
 
 ```env
-API_ENDPOINT=<r00ts URL>/api/ip/
+API_ENDPOINT=<r00ts URL>
 ```
 
 - `API_ENDPOINT`: address to an instance of
   [r00ts-website](https://github.com/al165/r00ts-website)
 
-Note this `.env` file is untracked by git.
+Note that this `.env` file is untracked by git.
 
 Next, build the extension:
 

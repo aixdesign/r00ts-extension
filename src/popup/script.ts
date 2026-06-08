@@ -1,23 +1,94 @@
+window.addEventListener('error', (e) => console.log('uncaught error', e.message, e.filename, e.lineno));
+window.addEventListener('unhandledrejection', (e) => console.log('unhandled rejection', e.reason));
+
 import * as browser from "webextension-polyfill";
 import { Datacenter, Entry, MessageTypes, PageData } from "../types";
 
 import { LngLatBounds, Map, Marker, setWorkerUrl } from 'maplibre-gl';
 
+import { MapRaseriser } from "./glyphRenderer";
+import mapBuildingsStyle from "./osm_buildings.json";
+import mapStyle from "./osm_surface.json";
+
 let currentTabId: number;
 let currentEntries: { [key: string]: Entry } = {};
 
 let map: maplibregl.Map;
+let mapBuildingsLayer: maplibregl.Map;
+
+let mapCanvas: HTMLCanvasElement;
+let glyphOverlayCanvas: HTMLCanvasElement | null;
+
+let offscreenCanvas: OffscreenCanvas;
+let glyphPaletteCanvas: OffscreenCanvas;
+let rasteriser: MapRaseriser;
 
 let markers: { [key: number]: Marker } = {};
 let facility_ids: number[] = [];
 let network_ids: number[] = [];
 let network_datacenters: { [key: number]: number[] };
+const glyphSize = 6;
 
 let pageUrl: string;
 
 let bounds: LngLatBounds;
 
-browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runtime.MessageSender) => {
+function syncMaps(...maps: Map[]) {
+    // Create all the movement functions, because if they're created every time
+    // they wouldn't be the same and couldn't be removed.
+    let fns: Parameters<Map["on"]>[1][] = [];
+    maps.forEach((map, index) => {
+        // When one map moves, we turn off the movement listeners
+        // on all the maps, move it, then turn the listeners on again
+        fns[index] = () => {
+            if (!map.getContainer().isConnected)
+                return
+
+            off();
+
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            const bearing = map.getBearing();
+            const pitch = map.getPitch();
+            const padding = map.getPadding();
+
+            const clones = maps.filter((_o, i) => i !== index);
+            clones.forEach((clone) => {
+                clone.jumpTo({
+                    center: center,
+                    zoom: zoom,
+                    bearing: bearing,
+                    pitch: pitch,
+                    padding: padding
+                });
+            });
+
+            on();
+        };
+    });
+
+    const on = () => {
+        maps.forEach((map, index) => {
+            map.on("move", fns[index]);
+        });
+    };
+
+    const off = () => {
+        maps.forEach((map, index) => {
+            map.off("move", fns[index]);
+        });
+    };
+
+    on();
+
+    return () => {
+        off();
+        fns = [];
+        maps = [];
+    };
+}
+
+async function handleMessage(message: any, _sender: browser.Runtime.MessageSender) {
     if (message.tabId != currentTabId)
         return;
 
@@ -43,30 +114,74 @@ browser.runtime.onMessage.addListener(async (message: any, _sender: browser.Runt
             network_datacenters[parseInt(net_id)] = Array.from(message.data.networkDatacenters[parseInt(net_id)]);
         }
     }
-});
+}
+
+browser.runtime.onMessage.addListener(handleMessage);
 
 async function load() {
+    console.log("script.ts load()");
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
 
     currentTabId = tab.id ? tab.id : 0;
 
     setWorkerUrl(browser.runtime.getURL('maplibre-gl-csp-worker.js'));
-    map = new Map({
-        container: 'map',
-        style: 'https://tiles.openfreemap.org/styles/liberty',
-        interactive: false
+
+    mapBuildingsLayer = new Map({
+        container: 'map-buildings',
+        style: mapBuildingsStyle as maplibregl.StyleSpecification,
+        interactive: true,
     });
 
+    map = new Map({
+        container: 'map',
+        style: mapStyle as maplibregl.StyleSpecification,
+        interactive: true
+    });
+
+    mapCanvas = map.getCanvas();
+    mapCanvas.style.opacity = "0";
+
+    offscreenCanvas = new OffscreenCanvas(1, 1);
+    glyphPaletteCanvas = new OffscreenCanvas(1, 1);
+    glyphOverlayCanvas = document.getElementById('glyph-render') as HTMLCanvasElement;
+
+    // Setup Rasteriser
+    rasteriser = new MapRaseriser(
+        glyphOverlayCanvas,
+        mapCanvas,
+        offscreenCanvas,
+        glyphPaletteCanvas,
+        glyphSize,
+    );
+
     map.on('load', () => {
+        console.log('map.on load');
+
         if (bounds?._ne)
             map.fitBounds(bounds, { padding: 40, animate: false, maxZoom: 14 });
 
+        new ResizeObserver(() =>
+            rasteriser.resize(mapCanvas.width, mapCanvas.height),
+        ).observe(mapCanvas);
     });
 
+    map.on('render', () => {
+        rasteriser.renderGlyphs();
+    });
+
+    rasteriser.resize(mapCanvas.width, mapCanvas.height);
+
+    syncMaps(map, mapBuildingsLayer);
+
     browser.runtime.sendMessage({ type: MessageTypes.GET_TAB_DATA, tabId: tab.id }).then((response: any) => {
-        if (!response)
+        console.log('browser.runtime.sendMessage');
+
+        if (!response) {
+            console.log('.. no response.');
+
             return;
+        }
 
         const pageData: PageData = response;
         const { cachedCount, requestsCount, networks, networksDatacenters } = pageData;
@@ -215,7 +330,43 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
         const id = parseInt(fac_id);
         if (!markers[id]) {
             const facility = datacenters[id];
-            const marker = new Marker()
+
+            const element = document.createElement('div');
+            element.classList.add('datacenter-marker');
+
+            element.innerHTML = `
+                <div class="marker-root" class:front={open}>
+                    <h2>${facility.name}</h2>
+                </div>
+            `;
+
+            if (!facility.filename && facility.precise && process.env.API_ENDPOINT) {
+                fetch(`${process.env.API_ENDPOINT}/api/aerial/${facility.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.filename)
+                            return;
+
+                        facility.filename = data.filename;
+
+                        element.innerHTML = `
+                        <div class="marker-root" class:front={open}>
+                            <div class="marker">
+                                <img 
+                                    class="aerial" 
+                                    src="${process.env.API_ENDPOINT}/images/aerial/${facility.filename}"
+                                    alt="Aerial view of ${facility.name}">
+                                </img>
+                                <div class="datacenter-title"><span>${facility.name}</span></div>
+                            </div>
+                        </div>
+                  `;
+                    }).catch(err => {
+                        console.error(err);
+                    })
+            }
+
+            const marker = new Marker({ element })
                 .setLngLat([facility.lon, facility.lat])
                 .addTo(map);
             markers[id] = marker;
@@ -228,8 +379,24 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
     }, new LngLatBounds());
 
     if (bounds._ne)
-        map.fitBounds(bounds, { padding: 40, maxZoom: 14 });
+        map?.fitBounds(bounds, { padding: 40, maxZoom: 14 });
 
 }
 
-load();
+window.addEventListener('load', async () => {
+    console.log('load');
+    await load();
+    // requestAnimationFrame(() => {
+    //     setTimeout(() => {
+    //         load(); // initialize map here
+    //     }, 0);
+    // });
+});
+
+window.addEventListener('unload', () => {
+    console.log('unload');
+    map?.remove(); // releases the WebGL context
+    mapBuildingsLayer?.remove();
+
+    browser.runtime.onMessage.removeListener(handleMessage);
+});

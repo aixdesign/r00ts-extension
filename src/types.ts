@@ -2,7 +2,10 @@ export type Datacenter = {
     id: number,
     name: string,
     lat: number,
-    lon: number
+    lon: number,
+    precise: boolean,
+    city: string,
+    filename?: string,
 };
 
 export type Network = {

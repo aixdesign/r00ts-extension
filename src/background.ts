@@ -9,7 +9,7 @@ const tabData: { [key: number]: PageData } = {};
 const userData: { country_code?: string } = {};
 
 function handleMessage(msg: any, _sender: browser.Runtime.MessageSender, sendResponse: (res: any) => void): true {
-    console.log("handleMessage", msg.type);
+    console.log("handleMessage", MessageTypes[msg.type]);
     if (msg.type == MessageTypes.GET_TAB_DATA) {
         const { tabId } = msg;
         if (tabId)
@@ -18,10 +18,6 @@ function handleMessage(msg: any, _sender: browser.Runtime.MessageSender, sendRes
     }
 
     return true;
-}
-
-function handleStartup() {
-    console.log('onStartup');
 }
 
 browser.runtime.onMessage.addListener(handleMessage);
@@ -83,7 +79,7 @@ browser.webRequest.onResponseStarted.addListener(
             browser.runtime.sendMessage({ type: MessageTypes.NEW_ENTRY, tabId, data: entry }).catch(() => { });
 
             if (process.env.API_ENDPOINT) {
-                let ip_url = `${process.env.API_ENDPOINT}/${ip}`;
+                let ip_url = `${process.env.API_ENDPOINT}/api/ip/${ip}`;
                 if (userData.country_code)
                     ip_url += `?country_code=${userData.country_code}`;
 
@@ -100,6 +96,7 @@ browser.webRequest.onResponseStarted.addListener(
 
                         for (const fac of facilities as Datacenter[]) {
                             const fac_id = fac.id;
+                            console.log(JSON.stringify(fac, null, 2));
                             if (!tabData[tabId].facilities[fac_id])
                                 tabData[tabId].facilities[fac_id] = fac;
 
@@ -167,5 +164,3 @@ browser.webNavigation?.onBeforeNavigate?.addListener((details) => {
         tabData[details.tabId] = { pageUrl: details.url, cachedCount: 0, requestsCount: 0, entries: {}, facilities: {}, networks: {}, networksDatacenters: {} };
     }
 });
-
-handleStartup();

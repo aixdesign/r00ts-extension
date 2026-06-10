@@ -1,7 +1,7 @@
 {
-    "background": {
-        "scripts": [
-            "background.js"
-        ]
-    }
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  }
 }

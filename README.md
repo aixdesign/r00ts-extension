@@ -48,5 +48,6 @@ To load the extension in your browser:
 
 - Firefox: visit `about:debugging` in the address bar, click "This Firefox",
   "Load Temporary Add-on..." and select `manifest.json` in `dist/firefox-extension`
-- Chrome: visit `chrome://extensions/` in the address bar, click "Load unpacked"
-  and select `manifest.json` in `dist/chrome-extension`
+- Chrome: visit `chrome://extensions/` in the address bar, enable "Developer
+  mode" with the toggle in the top right, click "Load unpacked" and select
+  `dist/chrome-extension`

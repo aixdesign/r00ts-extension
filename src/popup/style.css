@@ -1,5 +1,6 @@
 :root {
     --bg: #fff;
+    --info-bg: #e7e7e7;
     --border: #f3eeef;
     --accent: #68FF9E;
     --accent-dim: rgba(0, 255, 136, 0.12);
@@ -29,7 +30,6 @@ body {
     min-height: 300px;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
     font-size: 13px;
     display: flex;
     flex-direction: column;
@@ -63,6 +63,10 @@ h1 {
 /* Buttons */
 button {
     cursor: pointer;
+    padding: 0.5em;
+    margin: 0.5em 0;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 #details-btn {
@@ -70,16 +74,21 @@ button {
     position: absolute;
     top: 100%;
     width: 100%;
-    padding: 0.5em;
-    margin: 0.5em 0;
-    border: none;
-    background: var(--accent);
+    background: var(--marker);
     color: var(--text);
     flex-shrink: 0;
 }
 
 #details-btn:hover {
-    background: var(--marker);
+    background: var(--accent);
+}
+
+#fit-btn {
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    background: var(--info-bg);
+    z-index: 10;
 }
 
 /* Map */
@@ -158,9 +167,8 @@ button {
 #ip-info,
 #stats {
     position: absolute;
-    background: #e7e7e7;
+    background: var(--info-bg);
     z-index: 10;
-    font-family: monospace;
 }
 
 #ip-info {
@@ -177,35 +185,6 @@ button {
 #stats {
     bottom: 1em;
     right: 1em;
-}
-
-/* Page URL bar */
-.page-url-bar {
-    padding: 8px 16px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.page-url-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    flex-shrink: 0;
-}
-
-.page-url-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* Column headers */

@@ -213,7 +213,6 @@ async function handleMessage(message: any, _sender: browser.Runtime.MessageSende
 browser.runtime.onMessage.addListener(handleMessage);
 
 async function load() {
-    console.log("script.ts load()");
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
 
@@ -252,10 +251,7 @@ async function load() {
     );
 
     map.on('load', () => {
-        console.log('map.on load');
-
-        if (bounds?._ne)
-            map.fitBounds(bounds, { padding: { left: 200, top: 80, right: 80, bottom: 80 }, animate: false, maxZoom: 14 });
+        fitAll(false);
 
         new ResizeObserver(() =>
             rasteriser.resize(mapCanvas.width, mapCanvas.height),
@@ -322,6 +318,8 @@ async function load() {
         const data64 = btoa(JSON.stringify(data));
         browser.tabs.create({ url: `${process.env.API_ENDPOINT}?data=${data64}` });
     });
+
+    document.getElementById('fit-btn')?.addEventListener('click', () => fitAll());
 
 }
 
@@ -447,13 +445,23 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
         }
     }
 
+    fitAll();
+}
+
+function fitAll(animate: boolean = true) {
+    currentMarker?.close();
+
     bounds = Object.values(markers).reduce((bounds, marker) => {
         return bounds.extend(marker.marker.getLngLat());
     }, new LngLatBounds());
 
-    if (bounds._ne)
-        map?.fitBounds(bounds, { padding: { left: 200, top: 80, right: 80, bottom: 80 }, maxZoom: 14 });
+    console.log(JSON.stringify(bounds, null, 2));
 
+
+    if (bounds._ne) {
+        map.setPadding({ bottom: 80, top: 80, left: 80, right: 80 });
+        map.fitBounds(bounds, { padding: { left: 200 }, animate, maxZoom: 14 });
+    }
 }
 
 window.addEventListener('load', async () => {

@@ -83,7 +83,7 @@ browser.webRequest.onResponseStarted.addListener(
                 if (userData.country_code)
                     ip_url += `?country_code=${userData.country_code}`;
 
-                console.log(ip_url);
+                // console.log(ip_url);
                 fetch(ip_url)
                     .then(res => res.json())
                     .then(data => {
@@ -96,7 +96,7 @@ browser.webRequest.onResponseStarted.addListener(
 
                         for (const fac of facilities as Datacenter[]) {
                             const fac_id = fac.id;
-                            console.log(JSON.stringify(fac, null, 2));
+                            // console.log(JSON.stringify(fac, null, 2));
                             if (!tabData[tabId].facilities[fac_id])
                                 tabData[tabId].facilities[fac_id] = fac;
 

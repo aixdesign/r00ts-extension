@@ -4,7 +4,7 @@ window.addEventListener('unhandledrejection', (e) => console.log('unhandled reje
 import * as browser from "webextension-polyfill";
 import { Datacenter, Entry, MessageTypes, PageData } from "../types";
 
-import { AttributionControl, LngLatBounds, Map, Marker, setWorkerUrl } from 'maplibre-gl';
+import { LngLatBounds, Map, Marker, setWorkerUrl } from 'maplibre-gl';
 
 import { MapRaseriser } from "./glyphRenderer";
 import mapBuildingsStyle from "./osm_buildings.json";
@@ -23,7 +23,10 @@ let offscreenCanvas: OffscreenCanvas;
 let glyphPaletteCanvas: OffscreenCanvas;
 let rasteriser: MapRaseriser;
 
-let markers: { [key: number]: Marker } = {};
+let markers: { [key: number]: DatacenterMarker } = {};
+let currentMarker: DatacenterMarker | null = null;
+let openingMarker = false;
+
 let facility_ids: number[] = [];
 let network_ids: number[] = [];
 let network_datacenters: { [key: number]: number[] };
@@ -32,6 +35,97 @@ const glyphSize = 6;
 let pageUrl: string;
 
 let bounds: LngLatBounds;
+
+class DatacenterMarker {
+    focused = false;
+    marker: Marker;
+
+    facility: Datacenter;
+    markerRoot: HTMLDivElement;
+    title: HTMLSpanElement;
+    markerImg: HTMLDivElement;
+
+    constructor(facility: Datacenter) {
+        this.facility = facility;
+
+        const element = document.createElement('div');
+        element.classList.add('datacenter-marker');
+
+        this.markerRoot = document.createElement('div');
+        this.markerRoot.className = "marker-root";
+
+        this.title = document.createElement('span');
+        this.title.className = "datacenter-title";
+        this.title.innerText = facility.name;
+
+        element.appendChild(this.markerRoot);
+
+        this.markerImg = document.createElement('div');
+        this.markerRoot.appendChild(this.markerImg);
+
+        if (!facility.filename && facility.precise && process.env.API_ENDPOINT) {
+            fetch(`${process.env.API_ENDPOINT}/api/aerial/${facility.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.filename)
+                        return;
+
+                    facility.filename = data.filename;
+
+                    this.markerImg.className = "marker marker-small";
+                    this.markerImg.innerHTML = `
+                        <img 
+                            class="aerial" 
+                            src="${process.env.API_ENDPOINT}/images/aerial/${facility.filename}"
+                            alt="Aerial view of ${facility.name}">
+                        </img>
+                    `;
+
+                }).catch(err => {
+                    console.error(err);
+                })
+        }
+
+        this.marker = new Marker({ element })
+            .setLngLat([facility.lon, facility.lat])
+            .addTo(map);
+
+        this.marker.on('click', () => {
+            if (this.focused) {
+                this.close();
+            } else {
+                openingMarker = true;
+                this.open();
+            }
+        });
+    }
+
+    open() {
+        if (currentMarker != null)
+            currentMarker.close();
+
+        this.markerRoot.appendChild(this.title);
+        this.markerImg.classList.remove("marker-small");
+
+        map.flyTo({
+            zoom: 16,
+            center: [
+                this.facility.lon,
+                this.facility.lat,
+            ],
+            padding: { left: 350 },
+            duration: 1000,
+        })
+
+        currentMarker = this;
+    }
+
+    close() {
+        currentMarker = null;
+        this.markerRoot.removeChild(this.title);
+        this.markerImg.classList.add("marker-small");
+    }
+};
 
 function syncMaps(...maps: Map[]) {
     // Create all the movement functions, because if they're created every time
@@ -170,6 +264,18 @@ async function load() {
 
     map.on('render', () => {
         rasteriser.renderGlyphs();
+    });
+
+    map.on('click', () => {
+        if (!openingMarker)
+            currentMarker?.close();
+
+        openingMarker = false;
+    });
+
+    map.on('zoomend', () => {
+        if (map.getZoom() < 15)
+            currentMarker?.close();
     });
 
     rasteriser.resize(mapCanvas.width, mapCanvas.height);
@@ -334,51 +440,15 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
         if (!markers[id]) {
             const facility = datacenters[id];
 
-            const element = document.createElement('div');
-            element.classList.add('datacenter-marker');
-
-            element.innerHTML = `
-                <div class="marker-root" class:front={open}>
-                    <h2>${facility.name}</h2>
-                </div>
-            `;
-
-            if (!facility.filename && facility.precise && process.env.API_ENDPOINT) {
-                fetch(`${process.env.API_ENDPOINT}/api/aerial/${facility.id}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (!data.filename)
-                            return;
-
-                        facility.filename = data.filename;
-
-                        element.innerHTML = `
-                        <div class="marker-root" class:front={open}>
-                            <div class="marker">
-                                <img 
-                                    class="aerial" 
-                                    src="${process.env.API_ENDPOINT}/images/aerial/${facility.filename}"
-                                    alt="Aerial view of ${facility.name}">
-                                </img>
-                                <div class="datacenter-title"><span>${facility.name}</span></div>
-                            </div>
-                        </div>
-                  `;
-                    }).catch(err => {
-                        console.error(err);
-                    })
-            }
-
-            const marker = new Marker({ element })
-                .setLngLat([facility.lon, facility.lat])
-                .addTo(map);
+            const marker = new DatacenterMarker(facility);
             markers[id] = marker;
+
             facility_ids.push(id);
         }
     }
 
     bounds = Object.values(markers).reduce((bounds, marker) => {
-        return bounds.extend(marker.getLngLat());
+        return bounds.extend(marker.marker.getLngLat());
     }, new LngLatBounds());
 
     if (bounds._ne)
@@ -389,11 +459,6 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
 window.addEventListener('load', async () => {
     console.log('load');
     await load();
-    // requestAnimationFrame(() => {
-    //     setTimeout(() => {
-    //         load(); // initialize map here
-    //     }, 0);
-    // });
 });
 
 window.addEventListener('unload', () => {

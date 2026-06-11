@@ -107,8 +107,8 @@ button {
 }
 
 .marker {
-    max-height: 120px;
-    max-width: 120px;
+    max-height: 350px;
+    max-width: 350px;
     background: var(--marker);
     padding: 0.8em;
     transition-property: max-width, max-height, min-width !important;
@@ -116,6 +116,11 @@ button {
     position: relative;
     cursor: pointer;
     z-index: 2;
+}
+
+.marker-small {
+    max-width: 100px;
+    max-height: 100px;
 }
 
 .map-overlay {

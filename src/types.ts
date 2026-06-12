@@ -23,6 +23,7 @@ export type Entry = {
     count: number,
     durationMs?: number,
     network_id?: number,
+    clue?: Clue
 };
 
 export type PageData = {
@@ -34,6 +35,22 @@ export type PageData = {
     networksDatacenters: { [key: number]: Set<number> },
     entries: { [key: string]: Entry }
 };
+
+export enum ClueType {
+    CLOUDFARE,
+    AMAZON_CLOUDFRONT,
+    VERCEL,
+    AKAMAI
+};
+
+export type Clue = {
+    type: ClueType,
+    name: string,
+    code?: string
+    regionCode?: string
+    countryCode?: string
+    city?: string
+}
 
 export enum MessageTypes {
     GET_TAB_DATA,

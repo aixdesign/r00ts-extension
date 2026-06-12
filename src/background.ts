@@ -1,6 +1,8 @@
 import * as browser from "webextension-polyfill";
 import { MessageTypes, type Entry, type PageData, Datacenter } from "./types";
 
+import { parseCDNHeaders } from "./cdn_utils";
+
 // Time for each request
 const requestTimings: { [key: string]: number } = {};
 
@@ -31,7 +33,7 @@ browser.webRequest.onBeforeRequest.addListener(
 
 browser.webRequest.onResponseStarted.addListener(
     async (details) => {
-        const { requestId, fromCache, tabId, ip, url, type, timeStamp } = details;
+        const { requestId, fromCache, tabId, ip, url, type, timeStamp, responseHeaders } = details;
 
         if (tabId < 0)
             return;
@@ -50,6 +52,13 @@ browser.webRequest.onResponseStarted.addListener(
             durationMs = startTime ? Math.round(timeStamp - startTime) : undefined;
             tabData[tabId].cachedCount += 1;
         }
+
+        let clue = parseCDNHeaders(responseHeaders);
+
+        // if (clue) {
+        //     console.log(ip);
+        //     console.log(clue);
+        // }
 
         if (type == "main_frame") {
             // Top level page
@@ -71,6 +80,7 @@ browser.webRequest.onResponseStarted.addListener(
                 hostname,
                 count: 1,
                 durationMs,
+                clue
             };
 
             tabData[tabId].entries[ip] = entry;
@@ -80,10 +90,21 @@ browser.webRequest.onResponseStarted.addListener(
 
             if (process.env.API_ENDPOINT) {
                 let ip_url = `${process.env.API_ENDPOINT}/api/ip/${ip}`;
-                if (userData.country_code)
+                if (clue && (clue.countryCode || clue.city)) {
+                    const clueParams = new URLSearchParams();
+
+                    if (clue?.countryCode)
+                        clueParams.append('country_code', clue.countryCode);
+
+                    if (clue?.city)
+                        clueParams.append('city', clue.city);
+
+                    ip_url += `?${clueParams.toString()}`;
+                }
+                else if (userData.country_code)
                     ip_url += `?country_code=${userData.country_code}`;
 
-                // console.log(ip_url);
+                console.log(`${hostname}   ${ip_url}`);
                 fetch(ip_url)
                     .then(res => res.json())
                     .then(data => {
@@ -91,7 +112,7 @@ browser.webRequest.onResponseStarted.addListener(
                         if (reserved || !facilities || !network)
                             return;
 
-                        if (!userData.country_code)
+                        if (!userData.country_code && user?.country_code)
                             userData.country_code = user.country_code;
 
                         for (const fac of facilities as Datacenter[]) {
@@ -122,6 +143,7 @@ browser.webRequest.onResponseStarted.addListener(
                         ).catch(() => { });
                     })
                     .catch(err => {
+                        console.log(`Error fetching ip_url:`);
                         console.log(err)
                     });
             }
@@ -140,6 +162,9 @@ browser.webRequest.onResponseStarted.addListener(
                     tabData[tabId].entries[ip].durationMs = durationMs;
             }
 
+            if (clue)
+                tabData[tabId].entries[ip].clue = clue;
+
             browser.runtime.sendMessage({ type: MessageTypes.UPDATE_ENTRY, tabId, data: tabData[tabId].entries[ip] }).catch(() => { });
         }
 
@@ -152,7 +177,8 @@ browser.webRequest.onResponseStarted.addListener(
         ).catch(() => { });
 
     },
-    { urls: ["<all_urls>"] }
+    { urls: ["<all_urls>"] },
+    ['responseHeaders']
 );
 
 browser.tabs.onRemoved.addListener((tabId) => {

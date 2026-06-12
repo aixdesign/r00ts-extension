@@ -375,6 +375,11 @@ function addEntry(entry: Entry) {
     time_el.classList.add('entry-time');
     time_el.innerText = entry.durationMs ? `${Math.round(entry.durationMs)}ms` : "-";
 
+    const clue_el = document.createElement('td');
+    if (entry.clue) {
+        clue_el.innerText = `* ${entry.clue.city}`;
+    }
+
     row.appendChild(ip_el);
     row.appendChild(host_el);
     // row.appendChild(network_btn);
@@ -454,9 +459,6 @@ function fitAll(animate: boolean = true) {
     bounds = Object.values(markers).reduce((bounds, marker) => {
         return bounds.extend(marker.marker.getLngLat());
     }, new LngLatBounds());
-
-    console.log(JSON.stringify(bounds, null, 2));
-
 
     if (bounds._ne) {
         map.setPadding({ bottom: 80, top: 80, left: 80, right: 80 });

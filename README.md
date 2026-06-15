@@ -30,7 +30,9 @@ API_ENDPOINT=<r00ts URL>
 - `API_ENDPOINT`: address to an instance of
   [r00ts-website](https://github.com/al165/r00ts-website)
 
-Note that this `.env` file is untracked by git.
+Note that `.env` files is untracked by git.
+This file is for development builds, use `.env.prod` for production environment
+variables
 
 Next, build the extension:
 

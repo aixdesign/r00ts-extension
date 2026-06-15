@@ -1,6 +1,5 @@
 const path = require("path");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
-const Dotenv = require('dotenv-webpack');
 
 module.exports = {
     entry: {
@@ -34,7 +33,6 @@ module.exports = {
                     to: 'popup/maplibre.css'
                 }
             ]
-        }),
-        new Dotenv(),
+        })
     ]
 };

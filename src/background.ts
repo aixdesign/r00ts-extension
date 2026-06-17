@@ -68,7 +68,6 @@ function getEntryData(tabId: number, ip: string) {
 
             for (const fac of facilities as Datacenter[]) {
                 const fac_id = fac.id;
-                // console.log(JSON.stringify(fac, null, 2));
                 if (!tabData[tabId].facilities[fac_id])
                     tabData[tabId].facilities[fac_id] = fac;
 
@@ -91,6 +90,14 @@ function getEntryData(tabId: number, ip: string) {
                         networksDatacenters: tabData[tabId].networksDatacenters
                     }
 
+                }
+            ).catch(() => { });
+
+            browser.runtime.sendMessage(
+                {
+                    type: MessageTypes.UPDATE_ENTRY,
+                    tabId,
+                    data: tabData[tabId].entries[ip]
                 }
             ).catch(() => { });
         })

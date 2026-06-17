@@ -27,9 +27,9 @@ let markers: { [key: number]: DatacenterMarker } = {};
 let currentMarker: DatacenterMarker | null = null;
 let openingMarker = false;
 
-let facility_ids: number[] = [];
-let network_ids: number[] = [];
-let network_datacenters: { [key: number]: number[] };
+let facilityIds: number[] = [];
+let networkIds: number[] = [];
+let networksDatacenters: { [key: number]: number[] };
 const glyphSize = 6;
 
 let pageUrl: string;
@@ -207,12 +207,11 @@ async function handleMessage(message: any, _sender: browser.Runtime.MessageSende
         updateCounts(cachedCount, requestsCount);
     }
     else if (message.type == MessageTypes.UPDATE_FACILITIES) {
-        network_ids = Object.keys(message.data.networks).map(k => parseInt(k));
+        networkIds = Object.keys(message.data.networks).map(k => parseInt(k));
         updateFacilities(message.data.facilities);
-        network_datacenters = {};
-        for (const net_id of Object.keys(message.data.networkDatacenters)) {
-            network_datacenters[parseInt(net_id)] = Array.from(message.data.networkDatacenters[parseInt(net_id)]);
-        }
+        networksDatacenters = {};
+        for (const net_id of Object.keys(message.data.networksDatacenters))
+            networksDatacenters[parseInt(net_id)] = Array.from(message.data.networksDatacenters[parseInt(net_id)]);
     }
     else if (message.type == MessageTypes.PAGE_UPDATE) {
         // new host name etc
@@ -293,7 +292,7 @@ async function load() {
             return;
 
         const pageData: PageData = response;
-        const { cachedCount, requestsCount, networks, networksDatacenters } = pageData;
+        const { cachedCount, requestsCount, networks } = pageData;
         currentEntries = pageData.entries;
         pageUrl = pageData.pageUrl;
 
@@ -305,18 +304,17 @@ async function load() {
         updateFacilities(pageData.facilities);
         updateSummary(pageData);
 
-        network_ids = Object.keys(networks).map(k => parseInt(k));
-        network_datacenters = {};
-        for (const net_id of Object.keys(networksDatacenters)) {
-            network_datacenters[parseInt(net_id)] = Array.from(networksDatacenters[parseInt(net_id)]);
-        }
+        networkIds = Object.keys(networks).map(k => parseInt(k));
+        networksDatacenters = {};
+        for (const net_id of Object.keys(pageData.networksDatacenters))
+            networksDatacenters[parseInt(net_id)] = Array.from(pageData.networksDatacenters[parseInt(net_id)]);
     });
 
     document.getElementById('details-btn')?.addEventListener('click', () => {
         const data = {
-            facility_ids,
-            network_ids,
-            network_datacenters,
+            facility_ids: facilityIds,
+            network_ids: networkIds,
+            network_datacenters: networksDatacenters,
             entries: currentEntries,
             pageUrl,
         };
@@ -412,9 +410,7 @@ function addEntry(entry: Entry) {
     entryElements[entry.ip] = row;
 
     if (!entry.fetched) {
-        browser.runtime.sendMessage({ type: MessageTypes.FETCH_ENTRY_DATA, tabId: currentTabId, ip: entry.ip }).then(res => {
-            console.log(res);
-        });
+        browser.runtime.sendMessage({ type: MessageTypes.FETCH_ENTRY_DATA, tabId: currentTabId, ip: entry.ip });
     }
 }
 
@@ -475,7 +471,7 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
             const marker = new DatacenterMarker(facility, Object.keys(markers).length == 0);
             markers[id] = marker;
 
-            facility_ids.push(id);
+            facilityIds.push(id);
         }
     }
 

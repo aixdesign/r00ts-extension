@@ -131,6 +131,12 @@ class DatacenterMarker {
         this.markerRoot.classList.remove('front');
         this.markerImg.classList.add("marker-small");
     }
+
+    remove() {
+        this.close();
+        this.marker.remove();
+        //this.markerRoot.remove();
+    }
 };
 
 function syncMaps(...maps: Map[]) {
@@ -189,6 +195,12 @@ function syncMaps(...maps: Map[]) {
 }
 
 async function handleMessage(message: any, _sender: browser.Runtime.MessageSender) {
+    if (message.type == MessageTypes.PAGE_UPDATE) {
+        currentTabId = message.tabId;
+        loadPageData(message.data);
+        return;
+    }
+
     if (message.tabId != currentTabId)
         return;
 
@@ -209,13 +221,7 @@ async function handleMessage(message: any, _sender: browser.Runtime.MessageSende
     else if (message.type == MessageTypes.UPDATE_FACILITIES) {
         networkIds = Object.keys(message.data.networks).map(k => parseInt(k));
         updateFacilities(message.data.facilities);
-        networksDatacenters = {};
-        for (const net_id of Object.keys(message.data.networksDatacenters))
-            networksDatacenters[parseInt(net_id)] = Array.from(message.data.networksDatacenters[parseInt(net_id)]);
-    }
-    else if (message.type == MessageTypes.PAGE_UPDATE) {
-        // new host name etc
-        updateSummary(message.data as PageData);
+        updateNetworksDatacenters(message.data.networksDatacenters);
     }
 }
 
@@ -291,23 +297,9 @@ async function load() {
         if (!response)
             return;
 
+
         const pageData: PageData = response;
-        const { cachedCount, requestsCount, networks } = pageData;
-        currentEntries = pageData.entries;
-        pageUrl = pageData.pageUrl;
-
-        for (const ip of Object.keys(currentEntries))
-            addEntry(currentEntries[ip]);
-
-        updateCounts(cachedCount, requestsCount);
-        updateUrl(pageData.pageUrl);
-        updateFacilities(pageData.facilities);
-        updateSummary(pageData);
-
-        networkIds = Object.keys(networks).map(k => parseInt(k));
-        networksDatacenters = {};
-        for (const net_id of Object.keys(pageData.networksDatacenters))
-            networksDatacenters[parseInt(net_id)] = Array.from(pageData.networksDatacenters[parseInt(net_id)]);
+        loadPageData(pageData);
     });
 
     document.getElementById('details-btn')?.addEventListener('click', () => {
@@ -339,10 +331,6 @@ async function load() {
     //     });
 }
 
-function isIPv6(ip: string) {
-    return ip.includes(':');
-}
-
 // ----------------- UI Update functions -----------------
 let entryElements: { [key: string]: HTMLDivElement } = {};
 
@@ -361,31 +349,22 @@ function addEntry(entry: Entry) {
     entriesList.style.display = 'block';
 
     const numRows = Object.keys(entryElements).length;
-    if (numRows == 0) {
-        entriesList.querySelector('#hint-text')?.remove();
-        const details_btn = entriesList.querySelector('#details-btn') as HTMLElement;
-        if (details_btn)
-            details_btn.style.display = 'block';
-    }
+    if (numRows == 0)
+        document.getElementById('hint-text')?.remove();
 
     const table = entriesList.querySelector('#ip-body');
     if (!table)
         return;
 
-
     const row = document.createElement('tr');
     row.className = 'entry';
     if (numRows >= 6) {
         const opacity = Math.max(0, 1 - (numRows - 6) / 4);
-        console.log(opacity);
         row.style.opacity = opacity.toFixed(2);
     }
 
-    const ipv6 = isIPv6(entry.ip);
     const ip_el = document.createElement('td');
-    ip_el.classList.add("entry-ip");
-    if (ipv6)
-        ip_el.classList.add("ipv6");
+    ip_el.classList.add('entry-ip');
     ip_el.innerText = entry.ip;
 
     const host_el = document.createElement('td');
@@ -407,7 +386,6 @@ function addEntry(entry: Entry) {
 
     row.appendChild(ip_el);
     row.appendChild(host_el);
-    // row.appendChild(network_btn);
     row.appendChild(count_el);
     row.appendChild(time_el);
 
@@ -418,6 +396,35 @@ function addEntry(entry: Entry) {
     if (!entry.fetched) {
         browser.runtime.sendMessage({ type: MessageTypes.FETCH_ENTRY_DATA, tabId: currentTabId, ip: entry.ip });
     }
+}
+
+function loadPageData(pageData: PageData) {
+    const { cachedCount, requestsCount, networks } = pageData;
+    currentEntries = pageData.entries;
+    pageUrl = pageData.pageUrl;
+
+    for (const entryIP of Object.keys(entryElements))
+        entryElements[entryIP].remove();
+    entryElements = {};
+
+    for (const marker of Object.values(markers))
+        try {
+            marker.remove();
+        } catch {
+            continue;
+        }
+    markers = {};
+
+    for (const ip of Object.keys(currentEntries))
+        addEntry(currentEntries[ip]);
+
+    updateCounts(cachedCount, requestsCount);
+    updateUrl(pageData.pageUrl);
+    updateFacilities(pageData.facilities);
+    updateSummary(pageData);
+
+    networkIds = Object.keys(networks).map(k => parseInt(k));
+    updateNetworksDatacenters(pageData.networksDatacenters);
 }
 
 function updateEntry(entry: Entry) {
@@ -434,7 +441,12 @@ function updateEntry(entry: Entry) {
     const time_el = row.querySelector(".entry-time");
     if (time_el)
         time_el.innerHTML = entry.durationMs ? `${Math.round(entry.durationMs)}ms` : "-";
+}
 
+function updateNetworksDatacenters(nd: { [key: number]: Set<number> }) {
+    networksDatacenters = {};
+    for (const net_id of Object.keys(nd))
+        networksDatacenters[parseInt(net_id)] = Array.from(nd[parseInt(net_id)]);
 }
 
 function updateCounts(cachedCount: number, requestsCount: number) {
@@ -459,7 +471,6 @@ function updateCounts(cachedCount: number, requestsCount: number) {
 }
 
 function updateFacilities(datacenters: { [key: number]: Datacenter }) {
-
     if (!map)
         return;
 
@@ -519,6 +530,12 @@ function updateSummary(data: PageData) {
     const hostname = document.getElementById('hostname');
     if (hostname)
         hostname.innerText = data.pageUrl;
+    showCTA();
+}
+
+function showCTA() {
+    if (Object.keys(currentEntries).length == 0)
+        return;
 
     const cta = document.getElementById('cta');
     if (cta)

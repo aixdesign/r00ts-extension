@@ -10,24 +10,39 @@ const tabData: { [key: number]: PageData } = {};
 
 const userData: { country_code?: string } = {};
 
+function getHostname(url: string) {
+    try {
+        const urlObject = new URL(url);
+        return urlObject.hostname;
+    } catch {
+        return url;
+    }
+}
+
 function handleMessage(msg: any, _sender: browser.Runtime.MessageSender, sendResponse: (res: any) => void): true {
-    console.log("handleMessage", MessageTypes[msg.type]);
+    // console.log("handleMessage", MessageTypes[msg.type]);
     if (msg.type == MessageTypes.GET_TAB_DATA) {
         const { tabId } = msg;
 
-        if (tabId == undefined)
+        if (tabId == undefined) {
             return true;
+        }
+
+        if (tabData[tabId] == undefined)
+            initPageData(tabId);
 
         if (!tabData[tabId].pageUrl) {
+            console.log('pageUrl not set, getting it');
             browser.tabs.get(tabId).then(tab => {
-                if (tab.url) {
-                    const urlObject = new URL(tab.url);
-                    tabData[tabId].pageUrl = urlObject.hostname;
-                }
+                if (tab.url)
+                    tabData[tabId].pageUrl = getHostname(tab.url);
+
+                console.log(`pageUrl: ${tabData[tabId].pageUrl}`);
 
                 sendResponse(tabData[tabId]);
             }).catch(err => {
                 console.error(err);
+                sendResponse(null);
             });
         } else
             sendResponse(tabData[tabId]);
@@ -36,8 +51,10 @@ function handleMessage(msg: any, _sender: browser.Runtime.MessageSender, sendRes
     } else if (msg.type == MessageTypes.FETCH_ENTRY_DATA) {
         const { tabId, ip } = msg;
 
-        if (tabId == undefined || !ip)
+        if (tabId == undefined || !ip) {
+            sendResponse({ ok: false });
             return true;
+        }
 
         getEntryData(tabId, ip);
         sendResponse({ ok: true });
@@ -118,15 +135,21 @@ function getEntryData(tabId: number, ip: string) {
             console.log(`Error fetching ip_url:`);
             console.log(err)
         });
+}
 
+function initPageData(tabId: number) {
+    console.log('initPageData');
+    tabData[tabId] = { pageUrl: "", cachedCount: 0, requestsCount: 0, entries: {}, facilities: {}, networks: {}, networksDatacenters: {} };
 }
 
 browser.tabs.onUpdated.addListener((tabId, change) => {
+    console.log('browser.tabs.onUpdated');
     if (change.url) {
-        const urlObject = new URL(change.url)
-        const newUrl = urlObject.hostname.length ? urlObject.hostname : change.url;
+        const newUrl = getHostname(change.url);
         if (tabData[tabId] && tabData[tabId].pageUrl != newUrl) {
             // Reset
+            initPageData(tabId);
+            tabData[tabId].pageUrl = newUrl;
             browser.runtime.sendMessage({ type: MessageTypes.PAGE_UPDATE, tabId, data: tabData[tabId] }).catch(() => { });
         }
     }
@@ -154,7 +177,7 @@ browser.webRequest.onResponseStarted.addListener(
         }
 
         if (!tabData[tabId])
-            tabData[tabId] = { pageUrl: "", cachedCount: 0, requestsCount: 0, entries: {}, facilities: {}, networks: {}, networksDatacenters: {} };
+            initPageData(tabId);
 
         let durationMs;
         if (!fromCache) {
@@ -165,26 +188,15 @@ browser.webRequest.onResponseStarted.addListener(
 
         let clue = parseCDNHeaders(responseHeaders);
 
-        // if (clue) {
-        //     console.log(ip);
-        //     console.log(clue);
-        // }
-
-        if (type == "main_frame") {
+        if (type === "main_frame") {
             // Top level page
-            const urlObject = new URL(url);
-            tabData[tabId].pageUrl = urlObject.hostname.length ? urlObject.hostname : url;
+            tabData[tabId].pageUrl = getHostname(url);
             tabData[tabId].entries = {};
         }
 
         if (!tabData[tabId].entries[ip]) {
             // Add new entry
-            let hostname: string;
-            try {
-                hostname = (new URL(url)).hostname;
-            } catch {
-                hostname = url;
-            }
+            const hostname = getHostname(url);
 
             const entry: Entry = {
                 ip,
@@ -236,8 +248,21 @@ browser.tabs.onRemoved.addListener((tabId) => {
     delete tabData[tabId];
 });
 
+browser.tabs.onActivated.addListener((activeTab) => {
+    console.log('browser.tabs.onActivated');
+    const { tabId } = activeTab;
+
+    if (tabData[tabId] == undefined)
+        initPageData(tabId);
+
+    browser.runtime.sendMessage({ type: MessageTypes.PAGE_UPDATE, tabId, data: tabData[tabId] }).catch(() => { });
+});
+
 browser.webNavigation?.onBeforeNavigate?.addListener((details) => {
-    if (details.frameId === 0) {
-        tabData[details.tabId] = { pageUrl: details.url, cachedCount: 0, requestsCount: 0, entries: {}, facilities: {}, networks: {}, networksDatacenters: {} };
+    console.log('browser.webNavigation.onBeforeNavigate');
+    if (details.frameId == 0) {
+        const { tabId, url } = details;
+        initPageData(tabId);
+        tabData[tabId].pageUrl = url;
     }
 });

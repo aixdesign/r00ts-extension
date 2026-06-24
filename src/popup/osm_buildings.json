@@ -1,6 +1,6 @@
 {
     "version": 8,
-    "name": "Empty Style",
+    "name": "r00ts Style",
     "metadata": {
         "maputnik:renderer": "mlgljs"
     },
@@ -34,23 +34,72 @@
                     "==",
                     "class",
                     "residential"
-                ],
-                [
-                    "==",
-                    "class",
-                    "retail"
-                ],
-                [
-                    "==",
-                    "class",
-                    "quarter"
                 ]
             ],
             "layout": {
-                "visibility": "none"
+                "visibility": "visible"
             },
             "paint": {
                 "fill-color": "#8ff0a4"
+            }
+        },
+        {
+            "id": "place_label_city",
+            "type": "symbol",
+            "source": "openmaptiles",
+            "source-layer": "place",
+            "minzoom": 10,
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "class",
+                    "city"
+                ],
+                [
+                    "==",
+                    "$type",
+                    "Point"
+                ]
+            ],
+            "layout": {
+                "text-pitch-alignment": "map",
+                "text-field": "{name:en}",
+                "text-font": [
+                    "GT Pressura Mono",
+                    "monospace"
+                ]
+            },
+            "paint": {
+                "text-halo-color": "rgba(255, 255, 255, 1)",
+                "text-halo-width": 3
+            }
+        },
+        {
+            "id": "place_label_country",
+            "type": "symbol",
+            "source": "openmaptiles",
+            "source-layer": "place",
+            "minzoom": 5,
+            "filter": [
+                "all",
+                [
+                    "==",
+                    "class",
+                    "country"
+                ]
+            ],
+            "layout": {
+                "text-pitch-alignment": "map",
+                "text-field": "{name:en}",
+                "text-font": [
+                    "GT Pressura Mono",
+                    "monospace"
+                ]
+            },
+            "paint": {
+                "text-halo-color": "rgba(255, 255, 255, 1)",
+                "text-halo-width": 3
             }
         }
     ],

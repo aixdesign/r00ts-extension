@@ -3,40 +3,39 @@ import type { Colour, GlyphDrawFn, GlyphParams } from './types.ts';
 
 export const glyphState: GlyphParams[] = [
     {
-        glyphName: "line_h",
+        glyphName: "blank",
         label: "water",
-        rgb: [255, 255, 255],
-        bg: "#99c1f1",
+        rgb: [0, 0, 0],
+        bg: "#75CAFF",
         fg: "#FFF",
     },
     {
-        glyphName: "cross",
-        label: "grass",
-        rgb: [255, 0, 255],
-        bg: "#FFF",
-        fg: "#ff70b3",
-    },
-    {
-        glyphName: "blank",
+        glyphName: "line_h",
         label: "land",
         rgb: [0, 0, 255],
         bg: "#FFF",
-        fg: "#ff70b3",
+        fg: "#FF65AD",
     },
-
     {
         glyphName: "wedge",
+        label: "grass",
+        rgb: [255, 0, 255],
+        bg: "#FFF",
+        fg: "#FFB7FF",
+    },
+    {
+        glyphName: "triangle",
         label: "wood",
         rgb: [0, 255, 255],
         bg: "#FFF",
-        fg: "#ff70b3",
+        fg: "#FF88A0",
     },
     {
-        glyphName: "blank",
+        glyphName: "circle",
         label: "residential",
         rgb: [0, 255, 0],
         bg: "#FFF",
-        fg: "#ff70b3",
+        fg: "#FFB7FF",
     }
 ];
 

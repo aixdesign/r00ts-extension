@@ -109,7 +109,7 @@
             },
             "paint": {
                 "fill-antialias": false,
-                "fill-color": "rgba(224, 236, 236, 1)",
+                "fill-color": "rgba(0, 0, 255, 1)",
                 "fill-opacity": 0.8
             }
         },
@@ -172,7 +172,7 @@
                 "visibility": "visible"
             },
             "paint": {
-                "fill-color": "rgba(255, 255, 255, 1)"
+                "fill-color": "rgba(0, 0, 0, 1)"
             }
         },
         {
@@ -192,7 +192,7 @@
                 "visibility": "visible"
             },
             "paint": {
-                "fill-color": "rgba(247, 239, 195, 1)"
+                "fill-color": "rgba(0, 0, 255, 1)"
             }
         },
         {
@@ -207,10 +207,10 @@
                 "Polygon"
             ],
             "layout": {
-                "visibility": "visible"
+                "visibility": "none"
             },
             "paint": {
-                "fill-color": "rgba(229, 228, 224, 1)",
+                "fill-color": "rgba(255, 206, 0, 0)",
                 "fill-opacity": 0.7
             }
         },

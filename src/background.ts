@@ -2,6 +2,7 @@ import * as browser from "webextension-polyfill";
 import { MessageTypes, type Entry, type PageData, Datacenter } from "./types";
 
 import { parseCDNHeaders } from "./cdn_utils";
+import { IPtoInt, isIpReserved, isIPv4 } from "./popup/ip_utils";
 
 // Time for each request
 const requestTimings: { [key: string]: number } = {};
@@ -68,6 +69,8 @@ function getEntryData(tabId: number, ip: string) {
     if (!process.env.API_ENDPOINT || !tabData[tabId]?.entries[ip])
         return;
 
+    if (!isIPv4(ip) || isIpReserved(IPtoInt(ip)))
+        return;
 
     const { clue } = tabData[tabId].entries[ip];
 

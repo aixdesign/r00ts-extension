@@ -11,7 +11,6 @@
         }
     },
     "sprite": "",
-    "glyphs": "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
     "layers": [
         {
             "id": "buildings",
@@ -19,7 +18,20 @@
             "source": "openmaptiles",
             "source-layer": "building",
             "paint": {
-                "fill-color": "#8ff0a4"
+                "fill-color": "#ff3f99",
+                "fill-opacity": {
+                    "stops": [
+                        [
+                            13,
+                            0.5
+                        ],
+                        [
+                            16,
+                            1.0
+                        ]
+                    ]
+                },
+                "fill-outline-color": "#ffd0d0"
             }
         },
         {
@@ -27,21 +39,43 @@
             "type": "fill",
             "source": "openmaptiles",
             "source-layer": "landuse",
-            "minzoom": 8,
-            "maxzoom": 13,
+            "minzoom": 9,
+            "maxzoom": 24,
             "filter": [
                 "any",
                 [
                     "==",
                     "class",
                     "residential"
+                ],
+                [
+                    "==",
+                    "class",
+                    "industrial"
                 ]
             ],
             "layout": {
                 "visibility": "visible"
             },
             "paint": {
-                "fill-color": "#8ff0a4"
+                "fill-color": "#ff3f99",
+                "fill-opacity": {
+                    "stops": [
+                        [
+                            9,
+                            0
+                        ],
+                        [
+                            13,
+                            0.5
+                        ],
+                        [
+                            16,
+                            0.1
+                        ]
+                    ]
+                },
+                "fill-outline-color": "#ffd0d0"
             }
         },
         {

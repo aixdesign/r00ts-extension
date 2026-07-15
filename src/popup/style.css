@@ -43,16 +43,13 @@
     padding: 0;
 }
 
-html {
-    width: 800px;
+html,
+body {
+    width: 780px;
     height: 600px;
 }
 
 body {
-    width: 800px;
-    height: 600px;
-    max-width: 800px;
-    min-height: 300px;
     background: var(--bg);
     color: var(--text);
     font-size: 13px;
@@ -329,7 +326,7 @@ td {
     position: absolute;
     bottom: 1em;
     right: 1em;
-    padding-left: 3.4em;
+    padding-left: 3em;
     background: white;
     font-size: 8pt;
     max-width: 3em;

@@ -317,7 +317,6 @@ async function load() {
             entries: currentEntries,
             pageUrl,
         };
-        //console.log(JSON.stringify(data, null, 2));
         const data64 = btoa(encodeURIComponent(JSON.stringify(data)));
         browser.tabs.create({ url: `${process.env.API_ENDPOINT}?data=${data64}&submit=${submitOnView}` });
 
@@ -452,12 +451,15 @@ function updateEntry(entry: Entry) {
     const time_el = row.querySelector(".entry-time");
     if (time_el)
         time_el.innerHTML = entry.durationMs ? `${Math.round(entry.durationMs)}ms` : "-";
+
+    showCTA();
 }
 
 function updateNetworksDatacenters(nd: { [key: number]: Set<number> }) {
     networksDatacenters = {};
     for (const net_id of Object.keys(nd))
         networksDatacenters[parseInt(net_id)] = Array.from(nd[parseInt(net_id)]);
+    showCTA();
 }
 
 function updateCounts(cachedCount: number, requestsCount: number) {
@@ -479,6 +481,7 @@ function updateCounts(cachedCount: number, requestsCount: number) {
             ipCounter.innerHTML = '<em>1 IP address</em>';
         else
             ipCounter.innerHTML = `<em>${numIps}</em> IP addresses`;
+    showCTA()
 }
 
 function updateFacilities(datacenters: { [key: number]: Datacenter }) {
@@ -536,6 +539,7 @@ function updateFacilities(datacenters: { [key: number]: Datacenter }) {
                 cityInfo.innerHTML = `up to <em>${cityNames.length} cities</em>`;
         }
     }
+    showCTA()
 }
 
 function updateSummary(data: PageData) {

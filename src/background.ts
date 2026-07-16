@@ -57,14 +57,11 @@ function handleMessage(msg: any, _sender: browser.Runtime.MessageSender, sendRes
             initPageData(tabId);
 
         if (!tabData[tabId].pageUrl) {
-            console.log('pageUrl not set, getting it');
             browser.tabs.get(tabId).then(tab => {
                 if (!tabData[tabId]) return;
 
                 if (tab.url)
                     tabData[tabId].pageUrl = getHostname(tab.url);
-
-                console.log(`pageUrl: ${tabData[tabId].pageUrl}`);
 
                 sendResponse(tabData[tabId]);
             }).catch(err => {
@@ -170,8 +167,8 @@ function getEntryData(tabId: number, ip: string) {
             ).catch(() => { });
         })
         .catch(err => {
-            console.log(`Error fetching ip_url:`);
-            console.log(err)
+            console.error(`Error fetching ip_url:`);
+            console.error(err)
         });
 }
 
@@ -297,14 +294,6 @@ browser.tabs.onActivated.addListener((activeTab) => {
 
     browser.runtime.sendMessage({ type: MessageTypes.PAGE_UPDATE, tabId, data: tabData[tabId] }).catch(() => { });
 });
-
-// browser.webNavigation?.onBeforeNavigate?.addListener((details) => {
-//     if (details.frameId == 0) {
-//         const { tabId, url } = details;
-//         initPageData(tabId);
-//         tabData[tabId].pageUrl = url;
-//     }
-// });
 
 browser.storage.local.get('submitOnView')
     .then(val => {

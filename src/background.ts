@@ -13,7 +13,7 @@ const tabData: { [key: number]: PageData } = {};
 
 const userData: { country_code?: string } = {};
 
-let submitOnView: boolean = false;
+let submitOnView: boolean = true;
 
 export function getHostname(url: string) {
     try {
@@ -274,9 +274,7 @@ browser.webRequest.onResponseStarted.addListener(
             }
         ).catch(() => { });
 
-
         delete requestTimings[requestId];
-
     },
     { urls: ["<all_urls>"] },
     ['responseHeaders']

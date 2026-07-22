@@ -296,7 +296,7 @@ browser.tabs.onActivated.addListener((activeTab) => {
 browser.storage.local.get('submitOnView')
     .then(val => {
         if (val['submitOnView'] === undefined || val['submitOnView'] == null)
-            browser.storage.local.set({ 'submitOnView': false });
+            browser.storage.local.set({ submitOnView });
         else
             submitOnView = val['submitOnView'] as boolean;
     });
